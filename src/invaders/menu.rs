@@ -172,7 +172,11 @@ fn show_menu(
 fn interact_key(
     input: Res<ButtonInput<KeyCode>>,
     mut event_close: EventWriter<EventClose>,
+    game: Res<InvadersGame>,
 ) {
+    if game.win || game.gameover {
+        return;
+    }
     if input.just_pressed(KeyCode::Escape) {
         event_close.send(EventClose);
     }
