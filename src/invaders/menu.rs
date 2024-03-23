@@ -10,12 +10,16 @@ impl Plugin for MenuPlugin {
         app
             .add_event::<EventClose>()
 
-            .add_systems(OnEnter(InvaderState::Menu), show_menu)
-            .add_systems(OnExit(InvaderState::Menu), destroy_menu)
-            .add_systems(Update, interact_key.run_if(in_state(InvaderState::Menu)))
-            .add_systems(Update, interact_menu.run_if(in_state(InvaderState::Menu)))
-            .add_systems(Update, hover_menu.run_if(in_state(InvaderState::Menu)))
-            .add_systems(Update, close_menu.run_if(in_state(InvaderState::Menu)))
+            .add_systems(OnEnter(InvaderState::Start), show_menu)
+            .add_systems(OnEnter(InvaderState::Pause), show_menu)
+            .add_systems(OnEnter(InvaderState::Win), show_menu)
+            .add_systems(OnEnter(InvaderState::Gameover), show_menu)
+            .add_systems(OnEnter(InvaderState::Game), destroy_menu)
+            .add_systems(OnEnter(InvaderState::None), destroy_menu)
+            .add_systems(Update, interact_key.run_if(in_menu))
+            .add_systems(Update, interact_menu.run_if(in_menu))
+            .add_systems(Update, hover_menu.run_if(in_menu))
+            .add_systems(Update, close_menu.run_if(in_menu))
         ;
     }
 }
@@ -32,10 +36,21 @@ struct MMenuClose;
 #[derive(Event)]
 struct EventClose;
 
+fn in_menu(state: Res<State<InvaderState>>) -> bool {
+    match state.get() {
+        InvaderState::Start => true,
+        InvaderState::Pause => true,
+        InvaderState::Win => true,
+        InvaderState::Gameover => true,
+        _ => false,
+    }
+}
+
 fn show_menu(
     mut commands: Commands,
     game: Res<InvadersGame>,
-    assets: Res<AssetServer>
+    assets: Res<AssetServer>,
+    state: Res<State<InvaderState>>,
 ) {
     let Some(font) = assets.get_handle("eight-bit-dragon.otf") else {
         error!("menu font not loaded");
@@ -75,10 +90,10 @@ fn show_menu(
         MMenu,
         MMenuQuit,
     ));
-    if !game.win && !game.gameover {
+    if *state.get() != InvaderState::Win && *state.get() != InvaderState::Gameover {
         commands.spawn((
             TextBundle {
-                text: Text::from_section("Close", TextStyle {
+                text: Text::from_section(match state.get() {InvaderState::Start => "Start", _ => "Close"}, TextStyle {
                     font: font.clone(),
                     font_size: 30.0,
                     color,
@@ -96,8 +111,9 @@ fn show_menu(
             MMenuClose,
         ));
     }
-    if game.win {
-        commands.spawn((
+    match state.get() {
+        InvaderState::Win => {
+            commands.spawn((
             TextBundle {
                 text: Text::from_section("You Win!", TextStyle {
                     font: font.clone(),
@@ -113,8 +129,8 @@ fn show_menu(
                 ..default()
             },
             MMenu,
-        ));
-    } else if game.gameover {
+        ));},
+        InvaderState::Gameover => {
         commands.spawn((
             TextBundle {
                 text: Text::from_section("Game Over!", TextStyle {
@@ -131,54 +147,61 @@ fn show_menu(
                 ..default()
             },
             MMenu,
+        ));},
+        _ => ()
+    }
+    if *state.get() != InvaderState::Start {
+        commands.spawn((
+            TextBundle {
+                text: Text::from_section(format!("Score: {}", game.score), TextStyle {
+                    font: font.clone(),
+                    font_size: 30.0,
+                    color,
+                }),
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    left: Val::Percent(40.0),
+                    top: Val::Percent(30.0),
+                    ..default()
+                },
+                ..default()
+            },
+            MMenu,
+        ));
+        commands.spawn((
+            TextBundle {
+                text: Text::from_section(format!("Time: {:.1}", game.time), TextStyle {
+                    font: font.clone(),
+                    font_size: 30.0,
+                    color,
+                }),
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    left: Val::Percent(40.0),
+                    top: Val::Percent(35.0),
+                    ..default()
+                },
+                ..default()
+            },
+            MMenu,
         ));
     }
-    commands.spawn((
-        TextBundle {
-            text: Text::from_section(format!("Score: {}", game.score), TextStyle {
-                font: font.clone(),
-                font_size: 30.0,
-                color,
-            }),
-            style: Style {
-                position_type: PositionType::Absolute,
-                left: Val::Percent(40.0),
-                top: Val::Percent(30.0),
-                ..default()
-            },
-            ..default()
-        },
-        MMenu,
-    ));
-    commands.spawn((
-        TextBundle {
-            text: Text::from_section(format!("Time: {:.1}", game.time), TextStyle {
-                font: font.clone(),
-                font_size: 30.0,
-                color,
-            }),
-            style: Style {
-                position_type: PositionType::Absolute,
-                left: Val::Percent(40.0),
-                top: Val::Percent(35.0),
-                ..default()
-            },
-            ..default()
-        },
-        MMenu,
-    ));
 }
 
 fn interact_key(
     input: Res<ButtonInput<KeyCode>>,
     mut event_close: EventWriter<EventClose>,
-    game: Res<InvadersGame>,
+    // game: Res<InvadersGame>,
+    menu_state: Res<State<InvaderState>>,
 ) {
-    if game.win || game.gameover {
-        return;
-    }
-    if input.just_pressed(KeyCode::Escape) {
-        event_close.send(EventClose);
+    match menu_state.get() {
+        InvaderState::Win => return,
+        InvaderState::Gameover => return,
+        _=> {
+            if input.just_pressed(KeyCode::Escape) {
+                event_close.send(EventClose);
+            }
+        }
     }
 }
 
@@ -187,7 +210,7 @@ fn interact_menu(
     qquit: Query<&Interaction, (With<MMenuQuit>, Changed<Interaction>)>,
     mut event_close: EventWriter<EventClose>,
     mut main_state: ResMut<NextState<MainState>>,
-    mut state: ResMut<NextState<InvaderState>>
+    mut state: ResMut<NextState<InvaderState>>,
 ) {
     if let Ok(Interaction::Pressed) = qclose.get_single() {
         event_close.send(EventClose);

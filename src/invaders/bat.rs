@@ -134,15 +134,13 @@ fn check_shot(
     qbat: Query<(&MBat, &Transform), With<MBat>>,
     qbullet: Query<(Entity, &Transform), With<MBullet>>,
     mut state: ResMut<NextState<InvaderState>>,
-    mut game: ResMut<InvadersGame>,
 ) {
     let (_bat, tbat) = qbat.single();
     for (e, t) in qbullet.iter() {
         let bat_box = Rect::from_center_size(tbat.translation.xy(), tbat.scale.xy());
         if bat_box.contains(t.translation.xy()) {
             commands.entity(e).despawn();
-            game.gameover = true;
-            state.set(InvaderState::Menu);
+            state.set(InvaderState::Gameover);
         }
     }
 }

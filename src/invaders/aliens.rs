@@ -188,25 +188,24 @@ fn cheat_win(
 
 fn check_win(
     qaliens: Query<&MAlien>,
-    mut game: ResMut<InvadersGame>,
-    mut state: ResMut<NextState<InvaderState>>
+    // mut game: ResMut<InvadersGame>,
+    mut state: ResMut<NextState<InvaderState>>,
 ) {
     if !qaliens.is_empty() {
         return;
     }
-    game.win = true;
-    state.set(InvaderState::Menu);
+    // game.win = true;
+    state.set(InvaderState::Win);
 }
 
 fn check_lose(
     alien_box: Query<&MAlienBox>,
-    mut game: ResMut<InvadersGame>,
-    mut state: ResMut<NextState<InvaderState>>
+    // mut game: ResMut<InvadersGame>,
+    mut state: ResMut<NextState<InvaderState>>,
 ) {
     let alien_box = alien_box.single();
     if alien_box.area.min.y <= -350.0 {
-        game.gameover = true;
-        state.set(InvaderState::Menu);
+        state.set(InvaderState::Gameover);
     }
 }
 

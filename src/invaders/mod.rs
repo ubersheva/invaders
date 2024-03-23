@@ -6,7 +6,7 @@ use crate::invaders::aliens::AliensPlugin;
 use crate::invaders::bat::BatPlugin;
 use crate::invaders::bullet::BulletPlugin;
 use crate::invaders::hud::HudPlugin;
-use crate::invaders::menu::MenuPlugin;
+use crate::invaders::menu::{MenuPlugin};
 use crate::MainState;
 
 mod bat;
@@ -65,8 +65,6 @@ struct InvadersGame {
     shoot_delay: f32,
     score: i32,
     time: f32,
-    gameover: bool,
-    win: bool,
 }
 
 
@@ -79,9 +77,11 @@ struct MInvaders;
 #[derive(Component, States, Clone, PartialEq, Eq, Hash, Debug, Copy)]
 enum InvaderState {
     None,
+    Start,
     Game,
-    Menu,
-    // Results,
+    Pause,
+    Win,
+    Gameover,
 }
 
 fn invaders_setup(
@@ -95,20 +95,16 @@ fn invaders_setup(
 
     game.score = 0;
     game.time = 0.0;
-    game.gameover = false;
-    game.win = false;
 
-    invaders_state.set(InvaderState::Game);
+    invaders_state.set(InvaderState::Start);
 }
 
 fn invaders_key_input(
     mut input: ResMut<ButtonInput<KeyCode>>,
-    // mut exit_event: EventWriter<ExitEvent>,
-    mut menu_state: ResMut<NextState<InvaderState>>
+    mut state: ResMut<NextState<InvaderState>>,
 ) {
     if input.just_pressed(KeyCode::Escape) {
-        // exit_event.send(ExitEvent);
-        menu_state.set(InvaderState::Menu);
+        state.set(InvaderState::Pause);
         input.clear_just_pressed(KeyCode::Escape);
         // println!("input {:?}", i);
     }
